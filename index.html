@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Viewer</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #0d0d0d;
+        color: #fff;
+        padding: 20px;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 20px;
+        letter-spacing: 1px;
+      }
+
+      .input-box {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        padding: 10px 20px;
+        border: none;
+        background: #008cff;
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+
+      button:hover {
+        background: #0a72c6;
+      }
+
+      .error {
+        text-align: center;
+        color: #ff4d4d;
+        margin-bottom: 15px;
+        font-size: 15px;
+        display: none;
+      }
+
+      .loading {
+        text-align: center;
+        margin-top: 10px;
+        font-size: 16px;
+        display: none;
+      }
+
+      #videos {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        padding: 10px;
+      }
+
+      iframe {
+        width: 100%;
+        border: none;
+        background: #000;
+        border-radius: 10px;
+        overflow: hidden;
+        transition: transform 0.2s;
+      }
+
+      iframe:hover {
+        transform: scale(1.02);
+      }
+
+      #rowSlider {
+        width: 200px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Viewer</h1>
+
+    <div class="input-box">
+      <button onclick="loadVideos()" id="loadVideosBtn">Load Videos</button>
+    </div>
+
+    <div style="text-align: center; margin-bottom: 20px">
+      <label for="rowSlider">Videos per row: </label>
+      <input
+        type="range"
+        id="rowSlider"
+        min="1"
+        max="6"
+        value="3"
+        oninput="updateGrid()"
+      />
+      <span id="rowCount">3</span>
+    </div>
+
+    <div class="error" id="errorBox"></div>
+    <div class="loading" id="loadingBox">Loading… please wait</div>
+
+    <div id="videos"></div>
+
+    <script>
+      const localJSON = "input.json";
+      let videoList = [];
+
+      async function getVideoRatio(id) {
+        return 9 / 16;
+      }
+
+      // Auto-load JSON immediately
+      window.onload = loadJSON;
+
+      async function loadJSON() {
+        const errorBox = document.getElementById("errorBox");
+        const loadingBox = document.getElementById("loadingBox");
+
+        errorBox.style.display = "none";
+        loadingBox.style.display = "block";
+
+        try {
+          const res = await fetch(localJSON);
+          if (!res.ok) throw new Error("HTTP " + res.status);
+
+          videoList = await res.json(); // <-- ARRAY loaded
+          loadingBox.style.display = "none";
+        } catch (err) {
+          loadingBox.style.display = "none";
+          errorBox.textContent = "Failed to load input.json: " + err;
+          errorBox.style.display = "block";
+        }
+      }
+
+      async function loadVideos() {
+        const errorBox = document.getElementById("errorBox");
+        const container = document.getElementById("videos");
+
+        errorBox.style.display = "none";
+        container.innerHTML = "";
+
+        if (!Array.isArray(videoList) || videoList.length === 0) {
+          errorBox.textContent = "input.json is empty or invalid.";
+          errorBox.style.display = "block";
+          return;
+        }
+
+        for (const url of videoList) {
+          const match = url.match(/watch\/(.+)$/);
+          if (!match) continue;
+
+          const id = match[1];
+          const aspect = await getVideoRatio(id);
+
+          const iframe = document.createElement("iframe");
+          iframe.src = `https://www.redgifs.com/ifr/${id}?quality=hd`;
+          iframe.allowFullscreen = true;
+          iframe.setAttribute("allow", "autoplay; fullscreen");
+          iframe.setAttribute("playsinline", "");
+          iframe.style.aspectRatio = aspect;
+
+          container.appendChild(iframe);
+
+          // Remove broken redgifs embeds
+          setTimeout(() => {
+            const rect = iframe.getBoundingClientRect();
+            if (rect.height < 30) iframe.remove();
+          }, 3000);
+        }
+
+        updateGrid();
+      }
+
+      function updateGrid() {
+        const count = document.getElementById("rowSlider").value;
+        document.getElementById("rowCount").textContent = count;
+        const container = document.getElementById("videos");
+        container.style.gridTemplateColumns = `repeat(${count}, 1fr)`;
+      }
+    </script>
+  </body>
+</html>
